@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.Statement;
 import java.util.List;
 
+import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -36,9 +37,9 @@ public class ChestTransactionLookupThread implements Runnable {
             ConfigHandler.lookupThrottle.put(player.getName(), new Object[] { true, System.currentTimeMillis() });
             if (connection != null) {
                 Statement statement = connection.createStatement();
-                List<String> blockData = ChestTransactionLookup.performLookup(command.getName(), statement, location, player, page, limit, false);
-                for (String data : blockData) {
-                    Chat.sendComponent(player, data);
+                List<Component> blockData = ChestTransactionLookup.performLookup(command.getName(), statement, location, player, page, limit, false);
+                for (Component data : blockData) {
+                    player.sendMessage(data);
                 }
                 statement.close();
             }

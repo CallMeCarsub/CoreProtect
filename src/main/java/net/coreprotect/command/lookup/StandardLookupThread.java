@@ -9,6 +9,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import com.destroystokyo.paper.MaterialTags;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -35,6 +40,8 @@ import net.coreprotect.utility.ItemUtils;
 import net.coreprotect.utility.MaterialUtils;
 import net.coreprotect.utility.StringUtils;
 import net.coreprotect.utility.WorldUtils;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 public class StandardLookupThread implements Runnable {
     private final CommandSender player;
@@ -288,6 +295,11 @@ public class StandardLookupThread implements Runnable {
                                 Material blockType = ItemUtils.itemFilter(MaterialUtils.getType(dtype), (Integer.parseInt(data[13]) == 0));
                                 String dname = StringUtils.nameFilter(blockType.name().toLowerCase(Locale.ROOT), ddata);
                                 byte[] metadata = data[11] == null ? null : data[11].getBytes(StandardCharsets.ISO_8859_1);
+                                ItemStack betterTooltip = null;
+                                if(metadata != null && MaterialTags.SHULKER_BOXES.isTagged(blockType)){
+                                    betterTooltip = new ItemStack(blockType, amount);
+                                    betterTooltip = (ItemStack) net.coreprotect.database.rollback.Rollback.populateItemStack(betterTooltip, metadata)[2];
+                                }
                                 String tooltip = ItemUtils.getEnchantments(metadata, dtype, amount);
 
                                 String selector = Selector.FIRST;
@@ -317,7 +329,12 @@ public class StandardLookupThread implements Runnable {
                                     tag = (daction == 0 ? Color.GREEN + "+" : Color.RED + "-");
                                 }
 
-                                Chat.sendComponent(player, timeago + " " + tag + " " + Phrase.build(Phrase.LOOKUP_CONTAINER, Color.DARK_AQUA + rbd + dplayer + Color.WHITE + rbd, "x" + amount, ChatUtils.createTooltip(Color.DARK_AQUA + rbd + dname, tooltip) + Color.WHITE, selector));
+                                if(betterTooltip == null) {
+                                    Chat.sendComponent(player, timeago + " " + tag + " " + Phrase.build(Phrase.LOOKUP_CONTAINER, Color.DARK_AQUA + rbd + dplayer + Color.WHITE + rbd, "x" + amount, ChatUtils.createTooltip(Color.DARK_AQUA + rbd + dname, tooltip) + Color.WHITE, selector));
+                                }else{
+                                    String[] partialMessage = (timeago + timeago + " " + tag + " " + Phrase.build(Phrase.LOOKUP_CONTAINER, Color.DARK_AQUA + rbd + dplayer + Color.WHITE + rbd, "x" + amount, "$ITEMSTACK$" + Color.WHITE, selector)).split("\\$ITEMSTACK\\$");
+                                    player.sendMessage(Component.text(partialMessage[0]).append(Component.text(Color.DARK_AQUA + rbd + dname).hoverEvent(betterTooltip.asHoverEvent())).append(Component.text(partialMessage[1])));
+                                }
                                 PluginChannelListener.getInstance().sendData(player, Integer.parseInt(time), Phrase.LOOKUP_CONTAINER, selector, dplayer, dname, amount, dataX, dataY, dataZ, wid, rbd, true, tag.contains("+"));
                             }
                         }
@@ -342,6 +359,7 @@ public class StandardLookupThread implements Runnable {
                                 String tag = Color.WHITE + "-";
 
                                 String timeago = ChatUtils.getTimeSince(Integer.parseInt(time), unixtimestamp, true);
+                                Component timeagoComponent = ChatUtils.getTimeSinceComponent(Integer.parseInt(time), unixtimestamp);
                                 int timeLength = 50 + (ChatUtils.getTimeSince(Integer.parseInt(time), unixtimestamp, false).replaceAll("[^0-9]", "").length() * 6);
                                 String leftPadding = Color.BOLD + Strings.padStart("", 10, ' ');
                                 if (timeLength % 4 == 0) {
@@ -353,6 +371,7 @@ public class StandardLookupThread implements Runnable {
 
                                 String dname = "";
                                 boolean isPlayer = false;
+                                Material material = null;
                                 if (daction == 3 && !actions.contains(11) && amount == -1) {
                                     if (dtype == 0) {
                                         if (ConfigHandler.playerIdCacheReversed.get(ddata) == null) {
@@ -366,7 +385,8 @@ public class StandardLookupThread implements Runnable {
                                     }
                                 }
                                 else {
-                                    dname = MaterialUtils.getType(dtype).name().toLowerCase(Locale.ROOT);
+                                    material = MaterialUtils.getType(dtype);
+                                    dname = material.name().toLowerCase(Locale.ROOT);
                                     dname = StringUtils.nameFilter(dname, ddata);
                                 }
                                 if (dname.length() > 0 && !isPlayer) {
@@ -413,7 +433,25 @@ public class StandardLookupThread implements Runnable {
                                         action = "a:container";
                                     }
 
-                                    Chat.sendComponent(player, timeago + " " + tag + " " + Phrase.build(phrase, Color.DARK_AQUA + rbd + dplayer + Color.WHITE + rbd, "x" + amount, ChatUtils.createTooltip(Color.DARK_AQUA + rbd + dname, tooltip) + Color.WHITE, selector));
+                                    ItemStack betterTooltip = null;
+                                    if(metadata != null && MaterialTags.SHULKER_BOXES.isTagged(material)){
+                                        betterTooltip = new ItemStack(material, amount);
+                                        betterTooltip = (ItemStack) net.coreprotect.database.rollback.Rollback.populateItemStack(betterTooltip, metadata)[2];
+                                    }
+
+                                    if(betterTooltip == null) {
+                                        Chat.sendComponent(player, timeago + " " + tag + " " + Phrase.build(phrase, Color.DARK_AQUA + rbd + dplayer + Color.WHITE + rbd, "x" + amount, ChatUtils.createTooltip(Color.DARK_AQUA + rbd + dname, tooltip) + Color.WHITE, selector));
+                                    }else{
+                                        String[] partialMessage = (" " + tag + " " + Phrase.build(phrase, Color.DARK_AQUA + rbd + dplayer + Color.WHITE + rbd, "x" + amount, "$ITEMSTACK$" + Color.WHITE, selector)).split("\\$ITEMSTACK\\$");
+                                        if(betterTooltip.getItemMeta().hasDisplayName()){
+                                            dname = PlainTextComponentSerializer.plainText().serialize(betterTooltip.getItemMeta().displayName()) + " (" + dname + ")";
+                                        }
+                                        player.sendMessage(Component.empty()
+                                                .append(timeagoComponent)
+                                                .append(LegacyComponentSerializer.legacySection().deserialize(partialMessage[0])
+                                                        .append(LegacyComponentSerializer.legacySection().deserialize(Color.DARK_AQUA + rbd + dname).hoverEvent(betterTooltip.asHoverEvent())))
+                                                .append(LegacyComponentSerializer.legacySection().deserialize(partialMessage[1])));
+                                    }
                                     PluginChannelListener.getInstance().sendData(player, Integer.parseInt(time), phrase, selector, dplayer, dname, (tag.contains("+") ? 1 : -1), dataX, dataY, dataZ, wid, rbd, action.contains("container"), tag.contains("+"));
                                 }
                                 else {

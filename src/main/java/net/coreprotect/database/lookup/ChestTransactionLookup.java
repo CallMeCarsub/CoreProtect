@@ -6,6 +6,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import com.destroystokyo.paper.MaterialTags;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.command.CommandSender;
@@ -21,11 +25,12 @@ import net.coreprotect.utility.ItemUtils;
 import net.coreprotect.utility.MaterialUtils;
 import net.coreprotect.utility.StringUtils;
 import net.coreprotect.utility.WorldUtils;
+import org.bukkit.inventory.ItemStack;
 
 public class ChestTransactionLookup {
 
-    public static List<String> performLookup(String command, Statement statement, Location l, CommandSender commandSender, int page, int limit, boolean exact) {
-        List<String> result = new ArrayList<>();
+    public static List<Component> performLookup(String command, Statement statement, Location l, CommandSender commandSender, int page, int limit, boolean exact) {
+        List<Component> result = new ArrayList<>();
 
         try {
             if (l == null) {
@@ -94,10 +99,10 @@ public class ChestTransactionLookup {
                 }
 
                 String resultUser = ConfigHandler.playerIdCacheReversed.get(resultUserId);
-                String timeAgo = ChatUtils.getTimeSince(resultTime, time, true);
+                Component timeAgo = ChatUtils.getTimeSinceComponent(resultTime, time);
 
                 if (!found) {
-                    result.add(new StringBuilder(Color.WHITE + "----- " + Color.DARK_AQUA + Phrase.build(Phrase.CONTAINER_HEADER) + Color.WHITE + " ----- " + ChatUtils.getCoordinates(command, worldId, x, y, z, false, false)).toString());
+                    result.add(LegacyComponentSerializer.legacySection().deserialize(Color.WHITE + "----- " + Color.DARK_AQUA + Phrase.build(Phrase.CONTAINER_HEADER) + Color.WHITE + " ----- ").append(ChatUtils.getCoordinateComponent(command, worldId, x, y, z, false, false)));
                 }
                 found = true;
 
@@ -123,23 +128,41 @@ public class ChestTransactionLookup {
                     target = target.split(":")[1];
                 }
 
-                result.add(new StringBuilder(timeAgo + " " + tag + " " + Phrase.build(Phrase.LOOKUP_CONTAINER, Color.DARK_AQUA + rbFormat + resultUser + Color.WHITE + rbFormat, "x" + resultAmount, ChatUtils.createTooltip(Color.DARK_AQUA + rbFormat + target, tooltip) + Color.WHITE, selector)).toString());
+                ItemStack betterTooltip = null;
+                if(resultMetadata != null && MaterialTags.SHULKER_BOXES.isTagged(resultMaterial)){
+                    betterTooltip = new ItemStack(resultMaterial, resultAmount);
+                    betterTooltip = (ItemStack) net.coreprotect.database.rollback.Rollback.populateItemStack(betterTooltip, resultMetadata)[2];
+                }
+
+                if(betterTooltip == null) {
+                    result.add(Component.empty().append(timeAgo).append(Component.text(" " + tag + " " + Phrase.build(Phrase.LOOKUP_CONTAINER, Color.DARK_AQUA + rbFormat + resultUser + Color.WHITE + rbFormat, "x" + resultAmount, ChatUtils.createTooltip(Color.DARK_AQUA + rbFormat + target, tooltip) + Color.WHITE, selector))));
+                }else{
+                    String[] partialMessage = (" " + tag + " " + Phrase.build(Phrase.LOOKUP_CONTAINER, Color.DARK_AQUA + rbFormat + resultUser + Color.WHITE + rbFormat, "x" + resultAmount, "$ITEMSTACK$" + Color.WHITE, selector)).split("\\$ITEMSTACK\\$");
+                    if(betterTooltip.getItemMeta().hasDisplayName()){
+                        target = PlainTextComponentSerializer.plainText().serialize(betterTooltip.getItemMeta().displayName()) + " (" + target + ")";
+                    }
+                    result.add(Component.empty()
+                            .append(timeAgo)
+                            .append(LegacyComponentSerializer.legacySection().deserialize(partialMessage[0])
+                                    .append(LegacyComponentSerializer.legacySection().deserialize(Color.DARK_AQUA + rbFormat + target).hoverEvent(betterTooltip.asHoverEvent())))
+                            .append(LegacyComponentSerializer.legacySection().deserialize(partialMessage[1])));
+                }
                 PluginChannelListener.getInstance().sendData(commandSender, resultTime, Phrase.LOOKUP_CONTAINER, selector, resultUser, target, resultAmount, x, y, z, worldId, rbFormat, true, tag.contains("+"));
             }
             results.close();
 
             if (found) {
                 if (count > limit) {
-                    result.add(Color.WHITE + "-----");
-                    result.add(ChatUtils.getPageNavigation(command, page, totalPages));
+                    result.add(Component.text(Color.WHITE + "-----"));
+                    result.add(Component.text(ChatUtils.getPageNavigation(command, page, totalPages)));
                 }
             }
             else {
                 if (rowMax > count && count > 0) {
-                    result.add(Color.DARK_AQUA + "CoreProtect " + Color.WHITE + "- " + Phrase.build(Phrase.NO_RESULTS_PAGE, Selector.SECOND));
+                    result.add(Component.text(Color.DARK_AQUA + "CoreProtect " + Color.WHITE + "- " + Phrase.build(Phrase.NO_RESULTS_PAGE, Selector.SECOND)));
                 }
                 else {
-                    result.add(Color.DARK_AQUA + "CoreProtect " + Color.WHITE + "- " + Phrase.build(Phrase.NO_DATA_LOCATION, Selector.SECOND));
+                    result.add(Component.text(Color.DARK_AQUA + "CoreProtect " + Color.WHITE + "- " + Phrase.build(Phrase.NO_DATA_LOCATION, Selector.SECOND)));
                 }
             }
 

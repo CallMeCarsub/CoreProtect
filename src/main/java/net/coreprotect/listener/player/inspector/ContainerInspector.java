@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.Statement;
 import java.util.List;
 
+import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
@@ -21,9 +22,9 @@ public class ContainerInspector extends BaseInspector {
 
                     try (Connection connection = getDatabaseConnection(player)) {
                         Statement statement = connection.createStatement();
-                        List<String> blockData = ChestTransactionLookup.performLookup(null, statement, finalLocation, player, 1, 7, false);
-                        for (String data : blockData) {
-                            Chat.sendComponent(player, data);
+                        List<Component> blockData = ChestTransactionLookup.performLookup(null, statement, finalLocation, player, 1, 7, false);
+                        for (Component data : blockData) {
+                            player.sendMessage(data);
                         }
 
                         statement.close();
