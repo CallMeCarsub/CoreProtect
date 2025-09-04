@@ -9,6 +9,8 @@ import java.util.Locale;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.command.ConsoleCommandSender;
 
 import net.coreprotect.language.Phrase;
@@ -149,6 +151,112 @@ public class ChatUtils {
         }
 
         return message.append(Color.WHITE + backArrow + Color.DARK_AQUA + Phrase.build(Phrase.LOOKUP_PAGE, Color.WHITE + page + "/" + totalPages) + nextArrow + pagination).toString();
+    }
+
+    public static Component getPageNavigationComponent(String command, int page, int totalPages) {
+
+        // back arrow
+        Component backArrow = Component.empty();
+        if (page > 1) {
+            String backCommand = "/" + command + " l " + (page - 1);
+            backArrow = Component.text("◀ ").hoverEvent(HoverEvent.showText(Component.text(backCommand))).clickEvent(ClickEvent.runCommand(backCommand));
+        }
+
+        // next arrow
+        Component nextArrow = Component.text(" ");
+        if (page < totalPages) {
+            String nextCommand = "/" + command + " l " + (page + 1);
+            nextArrow = Component.text(" ▶ ").hoverEvent(HoverEvent.showText(Component.text(nextCommand))).clickEvent(ClickEvent.runCommand(nextCommand));
+        }
+
+        Component pagination = Component.empty();
+        if (totalPages > 1) {
+            pagination = pagination.append(Component.text("(", NamedTextColor.GRAY));
+            if (page > 3) {
+                pagination = pagination.append(Component.text("1 ", NamedTextColor.WHITE)
+                        .hoverEvent(HoverEvent.showText(Component.text("/" + command + " l " + 1)))
+                        .clickEvent(ClickEvent.runCommand("/" + command + " l " + 1)));
+                if (page > 4 && totalPages > 7) {
+                    pagination = pagination.append(Component.text("... ", NamedTextColor.GRAY));
+                }
+                else {
+                    pagination = pagination.append(Component.text("| ", NamedTextColor.GRAY));
+                }
+            }
+
+            int displayStart = (page - 2) < 1 ? 1 : (page - 2);
+            int displayEnd = (page + 2) > totalPages ? totalPages : (page + 2);
+            if (page > 999 || (page > 101 && totalPages > 99999)) { // limit to max 5 page numbers
+                displayStart = (displayStart + 1) < displayEnd ? (displayStart + 1) : displayStart;
+                displayEnd = (displayEnd - 1) > displayStart ? (displayEnd - 1) : displayEnd;
+                if (displayStart > (totalPages - 3)) {
+                    displayStart = (totalPages - 3) < 1 ? 1 : (totalPages - 3);
+                }
+            }
+            else { // display at least 7 page numbers
+                if (displayStart > (totalPages - 5)) {
+                    displayStart = (totalPages - 5) < 1 ? 1 : (totalPages - 5);
+                }
+                if (displayEnd < 6) {
+                    displayEnd = 6 > totalPages ? totalPages : 6;
+                }
+            }
+
+            if (page > 99999) { // limit to max 3 page numbers
+                displayStart = (displayStart + 1) < displayEnd ? (displayStart + 1) : displayStart;
+                displayEnd = (displayEnd - 1) >= displayStart ? (displayEnd - 1) : displayEnd;
+                if (page == (totalPages - 1)) {
+                    displayEnd = totalPages - 1;
+                }
+                if (displayStart < displayEnd) {
+                    displayStart = displayEnd;
+                }
+            }
+
+            if (page > 3 && displayStart == 1) {
+                displayStart = 2;
+            }
+
+            for (int displayPage = displayStart; displayPage <= displayEnd; displayPage++) {
+                if (page != displayPage) {
+                    pagination = pagination.append(Component.text(displayPage + (displayPage < totalPages ? " " : ""), NamedTextColor.WHITE)
+                            .hoverEvent(HoverEvent.showText(Component.text("/" + command + " l " + displayPage)))
+                            .clickEvent(ClickEvent.runCommand("/" + command + " l " + displayPage)));
+                }
+                else {
+                    pagination = pagination.append(Component.text(displayPage, NamedTextColor.WHITE)
+                            .decorate(TextDecoration.UNDERLINED)).append(Component.text(displayPage < totalPages ? " " : ""));
+                }
+                if (displayPage < displayEnd) {
+                    pagination = pagination.append(Component.text("| ", NamedTextColor.GRAY));
+                }
+            }
+
+            if (displayEnd < totalPages) {
+                if (displayEnd < (totalPages - 1)) {
+                    pagination = pagination.append(Component.text("... ", NamedTextColor.GRAY));
+                }
+                else {
+                    pagination = pagination.append(Component.text("| ", NamedTextColor.GRAY));
+                }
+                if (page != totalPages) {
+                    pagination = pagination.append(Component.text(totalPages, NamedTextColor.WHITE)
+                            .hoverEvent(HoverEvent.showText(Component.text("/" + command + " l " + totalPages)))
+                            .clickEvent(ClickEvent.runCommand("/" + command + " l " + totalPages)));
+                }
+                else {
+                    pagination = pagination.append(Component.text(totalPages, NamedTextColor.WHITE).decorate(TextDecoration.UNDERLINED));
+                }
+            }
+
+            pagination = pagination.append(Component.text(")", NamedTextColor.GRAY));
+        }
+
+        return Component.empty()
+                .append(backArrow)
+                .append(Component.text(Phrase.build(Phrase.LOOKUP_PAGE, Color.WHITE + page + "/" + totalPages)).color(NamedTextColor.DARK_AQUA))
+                .append(nextArrow)
+                .append(pagination);
     }
 
     public static String getTimeSince(long resultTime, long currentTime, boolean component) {

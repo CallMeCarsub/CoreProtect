@@ -135,7 +135,7 @@ public class ChestTransactionLookup {
                 }
 
                 if(betterTooltip == null) {
-                    result.add(Component.empty().append(timeAgo).append(Component.text(" " + tag + " " + Phrase.build(Phrase.LOOKUP_CONTAINER, Color.DARK_AQUA + rbFormat + resultUser + Color.WHITE + rbFormat, "x" + resultAmount, ChatUtils.createTooltip(Color.DARK_AQUA + rbFormat + target, tooltip) + Color.WHITE, selector))));
+                    result.add(Component.empty().append(timeAgo).append(LegacyComponentSerializer.legacySection().deserialize(" " + tag + " " + Phrase.build(Phrase.LOOKUP_CONTAINER, Color.DARK_AQUA + rbFormat + resultUser + Color.WHITE + rbFormat, "x" + resultAmount, ChatUtils.createTooltip(Color.DARK_AQUA + rbFormat + target, tooltip) + Color.WHITE, selector))));
                 }else{
                     String[] partialMessage = (" " + tag + " " + Phrase.build(Phrase.LOOKUP_CONTAINER, Color.DARK_AQUA + rbFormat + resultUser + Color.WHITE + rbFormat, "x" + resultAmount, "$ITEMSTACK$" + Color.WHITE, selector)).split("\\$ITEMSTACK\\$");
                     if(betterTooltip.getItemMeta().hasDisplayName()){
@@ -154,7 +154,7 @@ public class ChestTransactionLookup {
             if (found) {
                 if (count > limit) {
                     result.add(Component.text(Color.WHITE + "-----"));
-                    result.add(Component.text(ChatUtils.getPageNavigation(command, page, totalPages)));
+                    result.add(ChatUtils.getPageNavigationComponent(command, page, totalPages));
                 }
             }
             else {
